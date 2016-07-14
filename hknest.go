@@ -8,15 +8,14 @@ import (
 
 	"github.com/brutella/log"
 	"github.com/brutella/hc/hap"
-	"github.com/brutella/hc/model"
-	"github.com/brutella/hc/model/accessory"
+	"github.com/brutella/hc/accessory"
 
 	"github.com/ablyler/nest"
 )
 
 type HKThermostat struct {
 	accessory *accessory.Accessory
-	transport hap.Transport
+	transport hc.Transport
 
 	thermostat model.Thermostat
 }
@@ -25,7 +24,7 @@ var (
 	thermostats        map[string]*HKThermostat
 	nestPin            string
 	homekitPin         string
-	productId          string
+	productID          string
 	productSecret      string
 	state              string
 )
@@ -36,7 +35,7 @@ func logEvent(device *nest.Thermostat) {
 }
 
 func Connect() {
-    client := nest.New(productId, state, productSecret, nestPin)
+    client := nest.New(productID, state, productSecret, nestPin)
     client.Authorize()
     // fmt.Println(client.Token)
 
@@ -84,6 +83,7 @@ func Connect() {
 	})
 }
 
+// GetHKThermostat reaches out to the nest device
 func GetHKThermostat(nestThermostat *nest.Thermostat) *HKThermostat {
 	hkThermostat, found := thermostats[nestThermostat.DeviceID]
 	if found {
@@ -138,7 +138,7 @@ func GetHKThermostat(nestThermostat *nest.Thermostat) *HKThermostat {
 func main() {
 	thermostats = map[string]*HKThermostat{}
 
-	productIdArg := flag.String("product-id", "", "Nest provided product id")
+	productIDArg := flag.String("product-id", "", "Nest provided product id")
 	productSecretArg := flag.String("product-secret", "", "Nest provided product secret")
 	stateArg := flag.String("state", "", "A value you create, used during OAuth")
 	nestPinArg := flag.String("nest-pin", "", "PIN generated from the Nest site")
@@ -147,7 +147,7 @@ func main() {
 
 	flag.Parse()
 
-	productId = *productIdArg
+	productID = *productIDArg
 	productSecret = *productSecretArg
 	state = *stateArg
 	nestPin = *nestPinArg

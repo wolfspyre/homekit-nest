@@ -50,8 +50,8 @@ func Connect() {
 			// logEvent(device)
 
 			hkThermostat := GetHKThermostat(device)
-			hkThermostat.thermostat.CurrentTemperature.SetValue(float64(device.AmbientTemperatureC))
-			hkThermostat.thermostat.TargetTemperature.SetValue(float64(device.TargetTemperatureC))
+			hkThermostat.Thermostat.CurrentTemperature.SetValue(float64(device.AmbientTemperatureC))
+			hkThermostat.Thermostat.TargetTemperature.SetValue(float64(device.TargetTemperatureC))
 
 			var targetMode model.HeatCoolModeType
 

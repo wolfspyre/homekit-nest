@@ -18,7 +18,7 @@ type HKThermostat struct {
 	accessory *accessory.Accessory
 	transport hc.Transport
 
-	thermostat model.Thermostat
+	thermostat accessory.Thermostat
 }
 
 var (

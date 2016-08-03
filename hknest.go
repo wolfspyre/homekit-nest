@@ -10,6 +10,8 @@ import (
   "github.com/brutella/hc"
 	"github.com/brutella/hc/hap"
 	"github.com/brutella/hc/accessory"
+	"github.com/brutella/hc/service"
+	"github.com/brutella/hc/characteristic"
 
 	"github.com/ablyler/nest"
 )
@@ -17,7 +19,8 @@ import (
 type HKThermostat struct {
 	accessory *accessory.Accessory
 	transport hc.Transport
-
+  characteristic *characteristic.Characteristic
+  service *service.Thermostat
 	thermostat accessory.Thermostat
 }
 
@@ -49,38 +52,51 @@ func Connect() {
 		for _, device := range devices.Thermostats {
 			// logEvent(device)
 
-			hkThermostat := GetHKThermostat(device)
-			hkThermostat.Thermostat.CurrentTemperature.SetValue(float64(device.AmbientTemperatureC))
-			hkThermostat.Thermostat.TargetTemperature.SetValue(float64(device.TargetTemperatureC))
+			hkThermostat := GetHKThermostat(device);
+			hkThermostat.thermostat.Thermostat.CurrentTemperature.SetValue(float64(device.AmbientTemperatureC));
+			hkThermostat.thermostat.Thermostat.TargetTemperature.SetValue(float64(device.TargetTemperatureC));
 
-			var targetMode model.HeatCoolModeType
+			//var targetMode model.HeatCoolModeType
+      var targetMode characteristic.CurrentHeatingCoolingState
 
 			switch device.HvacMode {
+        //https://github.com/brutella/hc/blob/master/characteristic/target_heating_cooling_state.go
+        //https://github.com/brutella/hc/blob/master/characteristic/current_heating_cooling_state.go
 			case "heat":
-				targetMode = model.HeatCoolModeHeat
-			case "cool":
-				targetMode = model.HeatCoolModeCool
+				//targetMode = model.HeatCoolModeHeat
+        // nope targetMode = 1
+        targetMode = characteristic.CurrentHeatingCoolingStateHeat
+    	case "cool":
+				//targetMode = model.HeatCoolModeCool
+        targetMode = 2
 			case "off":
-				targetMode = model.HeatCoolModeOff
+				//targetMode = model.HeatCoolModeOff
+        targetMode = 0
 			default:
-				targetMode = model.HeatCoolModeAuto
+				//targetMode = model.HeatCoolModeAuto
+        targetMode = 3
 			}
 
-			hkThermostat.thermostat.SetTargetMode(targetMode)
+			//hkThermostat.thermostat.Thermostat.SetTargetMode(targetMode)
+      hkThermostat.thermostat.Thermostat.TargetHeatingCoolingState(targetMode)
 
-			var mode model.HeatCoolModeType
+			var mode Thermostat.HeatCoolModeType
 
 			switch device.HvacState {
 			case "heating":
-				mode = model.HeatCoolModeHeat
+				//mode = service.HeatCoolModeHeat
+        mode = Thermostat.TargetHeatingCoolingStateHeat
 			case "cooling":
-				mode = model.HeatCoolModeCool
+				//mode = service.HeatCoolModeCool
+        mode = TargetHeatingCoolingStateCool
 			default:
-				mode = model.HeatCoolModeOff
+				//mode = service.HeatCoolModeOff
+        mode = Thermostat.TargetHeatingCoolingStateOff
 			}
 
-			hkThermostat.thermostat.SetMode(mode)
-		}
+			//hkThermostat.thermostat.SetMode(mode)
+		  hkThermostat.thermostat.Thermostat.SetMode(mode)
+    }
 	})
 }
 

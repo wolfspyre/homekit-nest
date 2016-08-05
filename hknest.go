@@ -6,12 +6,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/brutella/log"
-  "github.com/brutella/hc"
-	"github.com/brutella/hc/hap"
+	"github.com/brutella/hc"
 	"github.com/brutella/hc/accessory"
-	"github.com/brutella/hc/service"
 	"github.com/brutella/hc/characteristic"
+	"github.com/brutella/log"
 
 	"github.com/ablyler/nest"
 )
@@ -19,29 +17,28 @@ import (
 type HKThermostat struct {
 	accessory *accessory.Accessory
 	transport hc.Transport
-  characteristic *characteristic.Characteristic
-  service *service.Thermostat
-	thermostat accessory.Thermostat
+
+	thermostat *accessory.Thermostat
 }
 
 var (
-	thermostats        map[string]*HKThermostat
-	nestPin            string
-	homekitPin         string
-	productID          string
-	productSecret      string
-	state              string
+	thermostats   map[string]*HKThermostat
+	nestPin       string
+	homekitPin    string
+	productID     string
+	productSecret string
+	state         string
 )
 
 func logEvent(device *nest.Thermostat) {
-    data, _ := json.MarshalIndent(device, "", "  ")
-    fmt.Println(string(data))
+	data, _ := json.MarshalIndent(device, "", "  ")
+	fmt.Println(string(data))
 }
 
 func Connect() {
-    client := nest.New(productID, state, productSecret, nestPin)
-    client.Authorize()
-    // fmt.Println(client.Token)
+	client := nest.New(productID, state, productSecret, nestPin)
+	client.Authorize()
+	// fmt.Println(client.Token)
 
 	client.DevicesStream(func(devices *nest.Devices, err error) {
 		if err != nil {
@@ -52,51 +49,35 @@ func Connect() {
 		for _, device := range devices.Thermostats {
 			// logEvent(device)
 
-			hkThermostat := GetHKThermostat(device);
-			hkThermostat.thermostat.Thermostat.CurrentTemperature.SetValue(float64(device.AmbientTemperatureC));
-			hkThermostat.thermostat.Thermostat.TargetTemperature.SetValue(float64(device.TargetTemperatureC));
+			hkThermostat := GetHKThermostat(device)
+			hkThermostat.thermostat.Thermostat.CurrentTemperature.SetValue(float64(device.AmbientTemperatureC))
+			hkThermostat.thermostat.Thermostat.TargetTemperature.SetValue(float64(device.TargetTemperatureC))
 
-			//var targetMode model.HeatCoolModeType
-      var targetMode characteristic.CurrentHeatingCoolingState
-
+			var mode int
 			switch device.HvacMode {
-        //https://github.com/brutella/hc/blob/master/characteristic/target_heating_cooling_state.go
-        //https://github.com/brutella/hc/blob/master/characteristic/current_heating_cooling_state.go
 			case "heat":
-				//targetMode = model.HeatCoolModeHeat
-        // nope targetMode = 1
-        targetMode = characteristic.CurrentHeatingCoolingStateHeat
-    	case "cool":
-				//targetMode = model.HeatCoolModeCool
-        targetMode = 2
+				mode = characteristic.TargetHeatingCoolingStateHeat
+			case "cool":
+				mode = characteristic.TargetHeatingCoolingStateCool
 			case "off":
-				//targetMode = model.HeatCoolModeOff
-        targetMode = 0
+				mode = characteristic.TargetHeatingCoolingStateOff
 			default:
-				//targetMode = model.HeatCoolModeAuto
-        targetMode = 3
+				mode = characteristic.TargetHeatingCoolingStateAuto
 			}
 
-			//hkThermostat.thermostat.Thermostat.SetTargetMode(targetMode)
-      hkThermostat.thermostat.Thermostat.TargetHeatingCoolingState(targetMode)
-
-			var mode Thermostat.HeatCoolModeType
+			hkThermostat.thermostat.Thermostat.TargetHeatingCoolingState.SetValue(mode)
 
 			switch device.HvacState {
 			case "heating":
-				//mode = service.HeatCoolModeHeat
-        mode = Thermostat.TargetHeatingCoolingStateHeat
+				mode = characteristic.CurrentHeatingCoolingStateHeat
 			case "cooling":
-				//mode = service.HeatCoolModeCool
-        mode = TargetHeatingCoolingStateCool
+				mode = characteristic.CurrentHeatingCoolingStateHeat
 			default:
-				//mode = service.HeatCoolModeOff
-        mode = Thermostat.TargetHeatingCoolingStateOff
+				mode = characteristic.CurrentHeatingCoolingStateOff
 			}
 
-			//hkThermostat.thermostat.SetMode(mode)
-		  hkThermostat.thermostat.Thermostat.SetMode(mode)
-    }
+			hkThermostat.thermostat.Thermostat.CurrentHeatingCoolingState.SetValue(mode)
+		}
 	})
 }
 
@@ -109,15 +90,15 @@ func GetHKThermostat(nestThermostat *nest.Thermostat) *HKThermostat {
 
 	log.Printf("[INFO] Creating New HKThermostat for %s", nestThermostat.Name)
 
-	info := model.Info{
+	info := accessory.Info{
 		Name:         nestThermostat.Name,
 		Manufacturer: "Nest",
 	}
 
 	thermostat := accessory.NewThermostat(info, float64(nestThermostat.AmbientTemperatureC), 9, 32, float64(0.5))
 
-	config := hap.Config{Pin: homekitPin}
-	transport, err := hap.NewIPTransport(config, thermostat.Accessory)
+	config := hc.Config{Pin: homekitPin}
+	transport, err := hc.NewIPTransport(config, thermostat.Accessory)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -126,28 +107,33 @@ func GetHKThermostat(nestThermostat *nest.Thermostat) *HKThermostat {
 		transport.Start()
 	}()
 
-	hkThermostat = &HKThermostat{thermostat.Accessory, transport, thermostat}
+	hkThermostat = &HKThermostat{
+		accessory:  thermostat.Accessory,
+		transport:  transport,
+		thermostat: thermostat,
+	}
 	thermostats[nestThermostat.DeviceID] = hkThermostat
 
-	thermostat.OnTargetTempChange(func(target float64) {
+	thermostat.Thermostat.TargetTemperature.OnValueRemoteUpdate(func(target float64) {
 		log.Printf("[INFO] Changed Target Temp for %s", nestThermostat.Name)
 		nestThermostat.SetTargetTempC(float32(target))
 	})
 
-	thermostat.OnTargetModeChange(func(mode model.HeatCoolModeType) {
+	thermostat.Thermostat.TargetHeatingCoolingState.OnValueRemoteUpdate(func(mode int) {
 		log.Printf("[INFO] Changed Mode for %s", nestThermostat.Name)
 
-		if mode == model.HeatCoolModeHeat {
-			nestThermostat.SetHvacMode(nest.Heat)
-		} else if mode == model.HeatCoolModeCool {
-			nestThermostat.SetHvacMode(nest.Cool)
-		} else if mode == model.HeatCoolModeOff {
+		switch mode {
+		case characteristic.TargetHeatingCoolingStateOff:
 			nestThermostat.SetHvacMode(nest.Off)
-		} else {
+		case characteristic.TargetHeatingCoolingStateHeat:
+			nestThermostat.SetHvacMode(nest.Heat)
+		case characteristic.TargetHeatingCoolingStateCool:
+			nestThermostat.SetHvacMode(nest.Cool)
+		default:
 			nestThermostat.SetHvacMode(nest.HeatCool)
 		}
-	})
 
+	})
 
 	return hkThermostat
 }
@@ -175,7 +161,7 @@ func main() {
 		log.Verbose = false
 	}
 
-	hap.OnTermination(func() {
+	hc.OnTermination(func() {
 		os.Exit(1)
 	})
 
